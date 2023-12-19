@@ -3,26 +3,62 @@ from datetime import datetime
 import sys
 import os
 
-def get_backup_filename(backup_label):
-    # NAME backup_label + "_" current datetime
-    
-    now = datetime.now() # Get the current dateime
-        
-    # remove the decimal seconds from now
-    now = str(now)
-    dt, junk = now.split(".")
+def get_backup_filename(backup_label, number_of_copies_to_keep, location_to_save_backup):
+    # NAME backup_label + "_" counter : counter, E.G. 1..10
+    print("num to keep: "+str(number_of_copies_to_keep))
+    dt = 1
+    oldest = 0
+    all_copies = []
+    if number_of_copies_to_keep:
+        for i in range(1, number_of_copies_to_keep+1):
+            print("i:"+str(i))
+            f1 = location_to_save_backup + "/" + backup_label + "_" + str(i)+".zip" 
+            if os.path.isfile(f1): # file exists
+                print("file exists")
+                if i < number_of_copies_to_keep:
+                    print(str(i)+" is less than "+str(number_of_copies_to_keep))
+                    if not oldest:
+                        oldest = i
+                    else:
+                        all_copies.append(i)
+                    dt = i
+                else:
+                    all_copies.append(i)
+                    if oldest:
+                        filename = location_to_save_backup + "/" + backup_label + "_" + str(oldest)+".zip"
+                        os.remove(filename) # delete oldest one
+                        print("deleted "+filename)
 
-    dt = dt.replace(":", "") # remove colons from time portion of dt
-    dt = dt.replace(" ", "_") # replaces spaces in dt with underscores
+                        # RENAME OTHERS, E.G. 1..10
+                        print("all_copies:", *all_copies)
+                        ct = 1
+                        for a in all_copies:
+                            # RENAME FILES, E.G. 1..10
+                            target = location_to_save_backup + "/" + backup_label + "_" + str(a) + ".zip"
+                            destination = location_to_save_backup + "/" + backup_label + "_" + str(ct)+".zip" 
+                            os.rename(target, destination)
+                            ct += 1
 
-    ret = backup_label + "_" + dt
+
+                        # SET dt
+                        dt = ct
+                        break
+            else:
+                print("File "+f1+" does NOT exist")
+                dt = i
+                break
+    print("dt after: "+str(dt))
+                
+
+    ret = backup_label + "_" + str(dt)
     return ret
 
 
-"""
-Adds subdirectories to a list to be scanned later
-"""
+
 def get_all_files_in_directory_iterative(directory_to_backup):
+    """
+    Adds subdirectories to a list to be scanned later
+    """
 
     directores_to_scan = list()
     directores_to_scan.append(directory_to_backup)
@@ -55,14 +91,34 @@ def get_all_files_in_directory_iterative(directory_to_backup):
     return dir_list_new
 
 
-def backup(directory_to_backup, location_to_save_backup, backup_label):
+
+def backup(directory_to_backup, location_to_save_backup, backup_label, number_of_copies_to_keep=-1):
+    """
+    Backup
+
+    :param directory_to_backup: directory to backup (target, full path, no trailing slash)
+    :type directory_to_backup: str
+
+    :param location_to_save_backup: directory to save backup to (destination, full path, no trailing slash)
+    :type location_to_save_backup: str
+
+    :param backup_label: label for backup (name of backup file, excluding .zip at the end)
+    :type backup_label: str
+
+    :param number_of_copies_to_keep: maximum number of copies of backup to keep
+    :type number_of_copies_to_keep: int (-1 for no limit)
+
+    :return: None
+    :rtype: None
+    """
+
     # ZIP UP directory_to_backup if directory_to_backup exists exists
     dir_exists = os.path.isdir(directory_to_backup)
     if not dir_exists:
         print("Error: directory to backup does not exist")
         sys.exit()
- 
-    zip_filename_with_path = location_to_save_backup + "/" + get_backup_filename(backup_label) + ".zip"
+
+    zip_filename_with_path = location_to_save_backup + "/" + get_backup_filename(backup_label, number_of_copies_to_keep, location_to_save_backup) + ".zip"
     
     #print("zip filename with path: "+zip_filename_with_path) # DEBUG
 
@@ -77,15 +133,29 @@ def backup(directory_to_backup, location_to_save_backup, backup_label):
         except PermissionError:
             print("Error: could not read file"+f)
         print("added "+f)
+
+    # VERIFY INTEGRITY OF ZIP FILE    
+    try:
+        # Reads all the files in the archive and check their CRC's and file headers. Returns the name of the first bad file, or else return None.
+        zip_okay = zip.testzip()         
+        if zip_okay is not None:
+            print("Zipfile error in "+zip_okay)  # TODO - IS THIS WORKING CORRECTLY?
+    except Exception as ex:
+        print("Exception:", ex)
+        zip.close()
+        sys.exit(1)    
+
+    # CLOSE THE ZIP FILE    
     zip.close()
+    
 
 
 
-# TODO - BACKUP ROTATION  (e.g. only keep most recent 5 copies) 
-
-# TODO - POSSIBLE TO VERIFY INTEGRITY OF ZIP FILE?
+# TODO - BACKUP ROTATION  (e.g. only keep most recent 5 copies) postfix filename with e.g. 1..10 instead of date (written, con't testing)
 
 # TODO - SCHEDULING, E.G. RUN AT 2AM, ETC.
 
 # TODO - WOULD BE BETTER TO READ FROM A CONFIG FILE AND LOOP THROUGH...
-backup("/path/to/directory_to_backup", "/path/to/save/backup", "Backup Label") 
+#backup("C:/joseph/MCMWebSolutions", "e:/test_backups", "MCMWebSolutions", 3)     
+backup("C:/ProgramData/Logic Software/Easy Time Tracking/DB 6.0/", "e:/test_backups", "EasyTimeTracker", 5)        
+backup("C:/joseph/test_b", "e:/test_backups", "TestB", 5)      
