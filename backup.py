@@ -2,21 +2,22 @@ import zipfile
 from datetime import datetime
 import sys
 import os
+import csv
 
 def get_backup_filename(backup_label, number_of_copies_to_keep, location_to_save_backup):
     # NAME backup_label + "_" counter : counter, E.G. 1..10
-    print("num to keep: "+str(number_of_copies_to_keep))
+    #print("num to keep: "+str(number_of_copies_to_keep))
     dt = 1
     oldest = 0
     all_copies = []
     if number_of_copies_to_keep:
         for i in range(1, number_of_copies_to_keep+1):
-            print("i:"+str(i))
+            #print("i:"+str(i))
             f1 = location_to_save_backup + "/" + backup_label + "_" + str(i)+".zip" 
             if os.path.isfile(f1): # file exists
-                print("file exists")
+                #print("file exists")
                 if i < number_of_copies_to_keep:
-                    print(str(i)+" is less than "+str(number_of_copies_to_keep))
+                    #print(str(i)+" is less than "+str(number_of_copies_to_keep))
                     if not oldest:
                         oldest = i
                     else:
@@ -27,10 +28,10 @@ def get_backup_filename(backup_label, number_of_copies_to_keep, location_to_save
                     if oldest:
                         filename = location_to_save_backup + "/" + backup_label + "_" + str(oldest)+".zip"
                         os.remove(filename) # delete oldest one
-                        print("deleted "+filename)
+                        #print("deleted "+filename)
 
                         # RENAME OTHERS, E.G. 1..10
-                        print("all_copies:", *all_copies)
+                        #print("all_copies:", *all_copies)
                         ct = 1
                         for a in all_copies:
                             # RENAME FILES, E.G. 1..10
@@ -44,10 +45,10 @@ def get_backup_filename(backup_label, number_of_copies_to_keep, location_to_save
                         dt = ct
                         break
             else:
-                print("File "+f1+" does NOT exist")
+                #print("File "+f1+" does NOT exist")
                 dt = i
                 break
-    print("dt after: "+str(dt))
+    #print("dt after: "+str(dt))
                 
 
     ret = backup_label + "_" + str(dt)
@@ -115,7 +116,7 @@ def backup(directory_to_backup, location_to_save_backup, backup_label, number_of
     # ZIP UP directory_to_backup if directory_to_backup exists exists
     dir_exists = os.path.isdir(directory_to_backup)
     if not dir_exists:
-        print("Error: directory to backup does not exist")
+        print("Error: directory to backup "+directory_to_backup+" does not exist")
         sys.exit()
 
     zip_filename_with_path = location_to_save_backup + "/" + get_backup_filename(backup_label, number_of_copies_to_keep, location_to_save_backup) + ".zip"
@@ -132,7 +133,7 @@ def backup(directory_to_backup, location_to_save_backup, backup_label, number_of
             zip.write(f)
         except PermissionError:
             print("Error: could not read file"+f)
-        print("added "+f)
+        #print("added "+f)
 
     # VERIFY INTEGRITY OF ZIP FILE    
     try:
@@ -151,9 +152,26 @@ def backup(directory_to_backup, location_to_save_backup, backup_label, number_of
 
 
 
-# TODO - BACKUP ROTATION  (e.g. only keep most recent 5 copies) postfix filename with e.g. 1..10 instead of date (written, con't testing)
-
+ 
 # TODO - SCHEDULING, E.G. RUN AT 2AM, ETC.
 
-# TODO - WOULD BE BETTER TO READ FROM A CONFIG FILE AND LOOP THROUGH...       
-backup("/path/to/files/to/backup", "/path/to/backup/to", "TestBackup", 5)      
+# READ FROM A CONFIG FILE AND LOOP 
+CONFIG_FILENAME = "./mcm_py_backup_config.csv" # NOTE: PATH IS RELATIVE TO DIRECTORY PROGRAM IS RUN IN, NOT RELATIVE TO ACTUAL LOCATION OF THE PROGRAM
+try:
+    with open(CONFIG_FILENAME, "r") as csvfile:
+        reader = csv.reader(csvfile)
+        for row in reader:
+            # skip lines that don't have 4 elements
+            # also skip comments (start with #)
+            if len(row) == 4 and row[0][0] != "#":
+                # READ FROM CONFIG FILE HERE AND FILL IN BELOW 4 VARS:
+                #print(row)
+                directory_to_backup = row[0] 
+                location_to_save_backup = row[1] 
+                backup_label = row[2] 
+                number_of_copies_to_keep = int(row[3])
+                #print("VARS: ", directory_to_backup, location_to_save_backup, backup_label, number_of_copies_to_keep)
+                backup(directory_to_backup, location_to_save_backup, backup_label, int(number_of_copies_to_keep))
+
+except FileNotFoundError:
+    sys.exit("Configuration file "+CONFIG_FILENAME+" not found")
