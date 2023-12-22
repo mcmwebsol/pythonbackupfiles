@@ -155,7 +155,5 @@ def backup(directory_to_backup, location_to_save_backup, backup_label, number_of
 
 # TODO - SCHEDULING, E.G. RUN AT 2AM, ETC.
 
-# TODO - WOULD BE BETTER TO READ FROM A CONFIG FILE AND LOOP THROUGH...
-#backup("C:/joseph/MCMWebSolutions", "e:/test_backups", "MCMWebSolutions", 3)     
-backup("C:/ProgramData/Logic Software/Easy Time Tracking/DB 6.0/", "e:/test_backups", "EasyTimeTracker", 5)        
-backup("C:/joseph/test_b", "e:/test_backups", "TestB", 5)      
+# TODO - WOULD BE BETTER TO READ FROM A CONFIG FILE AND LOOP THROUGH...       
+backup("/path/to/files/to/backup", "/path/to/backup/to", "TestBackup", 5)      
